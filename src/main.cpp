@@ -8,7 +8,7 @@ const int ch6 = 5;
 const int ch7 = 18;
 const int ch8 = 19;
 const int ch9 = 21;
-const int ch10 = 3;
+const int ch10 = 22;
 
 void setup() {
   pinMode(ch1, INPUT); 
@@ -56,7 +56,7 @@ void loop() {
   Serial.print(pwmRX8);
   Serial.print(", ch9: ");
   Serial.print(pwmRX9);
-  Serial.print(", ch2: ");
+  Serial.print(", ch10: ");
   Serial.print(pwmRX10);
   Serial.print("\n");
  
