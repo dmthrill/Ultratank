@@ -11,7 +11,6 @@ const int directionPin[] = {27, 14, 12, 13};
 const int brakePin[] = {34, 35, 1, 3};
 
 bool directionOut[] = {0, 0, 1, 1}; // налаштування направлення двигунів за замовчуванням 0 — вперед, 1 — назад
-bool brakeOut[] = {0, 0, 0, 0};
 int motorOut[] = {0, 0, 0, 0};
 
 bool isReversing = false;
@@ -56,27 +55,67 @@ void setup()
         pinMode(brakePin[i], OUTPUT);
     };
 }
+void smoothReverse()
+{
+    const int stepDelay = 16; // Задержка между шагами изменения скорости
+    const int stepSize = 4;   // Шаг изменения скорости
 
+    // Плавное уменьшение скорости до нуля
+    while (motorOut[0] > 0 || motorOut[1] > 0 || motorOut[2] > 0 || motorOut[3] > 0)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            motorOut[i] = max(motorOut[i] - stepSize, 0);
+            analogWrite(motorPin[i], motorOut[i]);
+        }
+        delay(stepDelay);
+    }
+
+    // Изменение направления
+    for (int i = 0; i < 4; i++)
+    {
+        directionOut[i] = !directionOut[i];
+        digitalWrite(directionPin[i], directionOut[i]);
+    }
+
+    // Плавное увеличение скорости до текущего значения PWM
+    int targetSpeed = map(pwmRX[2], 986, 1972, 0, 255);
+    targetSpeed = constrain(targetSpeed, 0, 255);
+    while (motorOut[0] < targetSpeed || motorOut[1] < targetSpeed || motorOut[2] < targetSpeed || motorOut[3] < targetSpeed)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            motorOut[i] = min(motorOut[i] + stepSize, targetSpeed);
+            analogWrite(motorPin[i], motorOut[i]);
+        }
+        delay(stepDelay);
+    }
+
+    isReversing = !isReversing; // Сброс флага после завершения плавного реверса
+}
 void loop()
 {
-    bool isReversing = (pwmRX[7] >= 1450 && pwmRX[7] <= 1550) ? true : false;
-    bool isBrake = (pwmRX[6] >= 1450 && pwmRX[7] <= 1500) ? true : false;
+    bool onReversing = (pwmRX[7] >= 1450 && pwmRX[7] <= 1550) ? true : false;
+    bool onBrake = (pwmRX[6] >= 1450 && pwmRX[7] <= 1500) ? true : false;
 
     for (int i = 0; i < 4; i++)
     {
         motorOut[i] = map(pwmRX[2], 986, 1972, 0, 255);
         motorOut[i] = constrain(motorOut[i], 0, 255);
         analogWrite(motorPin[i], motorOut[i]);
-
-        // Логика реверса и тормоза
-        if (isReversing)
+        // Логика реверса
+        if (onReversing != isReversing)
         {
-            digitalWrite(directionPin[i], !directionOut[i]);
+            smoothReverse();
+            // digitalWrite(directionPin[i], !directionOut[i]);
         }
         else
         {
             digitalWrite(directionPin[i], directionOut[i]);
         }
+
+        // Тормоз, тернарный оператор
+        digitalWrite(brakePin[i], onBrake ? HIGH : LOW);
     }
 
     // Используем значения pwmRX
