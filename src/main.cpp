@@ -1,144 +1,120 @@
 #include <Arduino.h>
 
 /*
-CHANNELS  1,  2, 3, 4,  5,  6, 7,  8,  9,  10
-PINS      15, 2, 4, 16, 17, 5, 18, 19, 21, 22
+CHANNELS 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+PINS 15, 2, 4, 16, 17, 5, 18, 19, 21, 22
 */
 
-const int radioPin[10] = {15, 2, 4, 16, 17, 5, 18, 19, 21, 22}; // 1. Газ 2. Поворот. 3. Тормоз. Реверс.
-const int motorPin[4] = {32, 33, 25, 26};
-const int directionPin[4] = {27, 14, 12, 13};
+const int radioPin[] = {15, 2, 4, 16, 17, 5, 18, 19, 21, 22}; // 1. Газ 2. Поворот. 3. Тормоз. Реверс.
+const int motorPin[] = {32, 33, 25, 26};
+const int directionPin[] = {27, 14, 12, 13};
 
-bool directionOut[4] = {1, 0, 0, 0}; // налаштування направлення двигунів за замовчуванням 0 — вперед, 1 — назад
-bool brakeOut[4] = {0, 0, 0, 0};
-int motorOut[4] = {0, 0, 0, 0};
-
-
+bool directionOut[] = {0, 0, 1, 1}; // Налаштування направлення двигунів за замовчуванням 0 — вперед, 1 — назад
+bool brakeOut[] = {0, 0, 0, 0};
+int motorOut[] = {0, 0, 0, 0};
 
 // Переменные для хранения значений PWM
 volatile unsigned long pwmRX[10];
 
+bool isReversing = false; // Флаг, указывающий на процесс реверса
+
 // Обработчики прерываний
-void IRAM_ATTR handleInterrupt(void* arg) {
-  int channelIndex = (int)arg; // Индекс канала
-  static uint32_t prevRise[10] = {0}; // Переменные для хранения времени предыдущего нарастающего фронта
-  static uint32_t prevFall[10] = {0}; // Переменные для хранения времени предыдущего спадающего фронта
-  uint32_t currTime = micros(); // Получаем текущее время в микросекундах
-  // Проверяем состояние пина
-  if (digitalRead(radioPin[channelIndex]) == HIGH) {
-    prevRise[channelIndex] = currTime; // Если высокий уровень, сохраняем время нарастающего фронта
-  } else {
-    prevFall[channelIndex] = currTime; // Если низкий уровень, сохраняем время спадающего фронта
-    pwmRX[channelIndex] = prevFall[channelIndex] - prevRise[channelIndex]; // Записываем длительность импульса в соответствующий элемент массива
-  }
-}
-
-void setup() {
-  Serial.begin(115200); // Инициализируем Serial порт
-
-  // Прерывание
-  for (int i = 0; i < 10; i++) {
-    attachInterruptArg(digitalPinToInterrupt(radioPin[i]), handleInterrupt, (void*)i, CHANGE);
-  }
-  interrupts();
-
-
-  for (int i = 0; i < 2; i++)
-  {
-    pinMode(directionPin[i], OUTPUT);
-    pinMode(motorOut[i], OUTPUT);
-    pinMode(brakeOut[i], OUTPUT);
-
-  };
-  
-  
-
-}
-
-void loop() {
-
-int yawValue = map(pwmRX[3], 986, 1972, -255, 255);
-int throttleValue = map(pwmRX[2], 986, 1972, 0, 255);
-
-
-
-if (yawValue > 0)
+void IRAM_ATTR handleInterrupt(void *arg)
 {
-  // Плавно скидаємо швидкість моторів, доки motorOut не буде 0
-  for (int i = 0; motorOut[0] <= 0; i++)
-  {
-    motorOut[0] = throttleValue - 10;
-    motorOut[1] = throttleValue - 10;
-    delay(200);
-  }
-	directionOut[0] = !directionOut[0];
-	directionOut[1] = !directionOut[1];
-
-  //Плавно набираемо оберти
-  for (int i = 0; motorOut[0] = abs(yawValue); i++)
-  {
-    motorOut[0] = i;
-    delay(200);
-  }
+    int channelIndex = (int)arg;        // Индекс канала
+    static uint32_t prevRise[10] = {0}; // Переменные для хранения времени предыдущего нарастающего фронта
+    static uint32_t prevFall[10] = {0}; // Переменные для хранения времени предыдущего спадающего фронта
+    uint32_t currTime = micros();       // Получаем текущее время в микросекундах
+    // Проверяем состояние пина
+    if (digitalRead(radioPin[channelIndex]) == HIGH)
+    {
+        prevRise[channelIndex] = currTime; // Если высокий уровень, сохраняем время нарастающего фронта
+    }
+    else
+    {
+        prevFall[channelIndex] = currTime;                                     // Если низкий уровень, сохраняем время спадающего фронта
+        pwmRX[channelIndex] = prevFall[channelIndex] - prevRise[channelIndex]; // Записываем длительность импульса в соответствующий элемент массива
+    }
 }
 
-if (yawValue > 0)
+void setup()
 {
-	directionOut[0] = !directionOut[0];
-	directionOut[1] = !directionOut[1];
-	motorOut[0] = abs(yawValue);
-	motorOut[1] = abs(yawValue);
+    Serial.begin(115200); // Инициализируем Serial порт
+
+    // Прерывание
+    for (int i = 0; i < 10; i++)
+    {
+        attachInterruptArg(digitalPinToInterrupt(radioPin[i]), handleInterrupt, (void *)i, CHANGE);
+    }
+    interrupts();
+
+    for (int i = 0; i < 4; i++)
+    {
+        pinMode(directionPin[i], OUTPUT);
+        pinMode(motorPin[i], OUTPUT);
+        pinMode(brakeOut[i], OUTPUT);
+    }
 }
 
-/*
-Якщо yawValue > 0 робимо
-	directionOut[0] = !directionOut[0]
-	directionOut[1] = !directionOut[1]
-	motorOut[0] = abs(yawValue)
-	motorOut[1] = abs(yawValue)
-Якщо yawValue < 0 робимо
-	directionOut[2] = !directionOut[2]
-	directionOut[3] = !directionOut[3]
-	motorOut[2] = abs(yawValue)
-	motorOut[3] = abs(yawValue)
-*/
+void smoothReverse()
+{
+    const int stepDelay = 10; // Задержка между шагами изменения скорости
+    const int stepSize = 5;   // Шаг изменения скорости
 
+    // Плавное уменьшение скорости до нуля
+    while (motorOut[0] > 0 || motorOut[1] > 0 || motorOut[2] > 0 || motorOut[3] > 0)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            motorOut[i] = max(motorOut[i] - stepSize, 0);
+            analogWrite(motorPin[i], motorOut[i]);
+        }
+        delay(stepDelay);
+    }
 
+    // Изменение направления
+    for (int i = 0; i < 4; i++)
+    {
+        directionOut[i] = !directionOut[i];
+        digitalWrite(directionPin[i], directionOut[i]);
+    }
 
+    // Плавное увеличение скорости до текущего значения PWM
+    int targetSpeed = map(pwmRX[2], 986, 1972, 0, 255);
+    targetSpeed = constrain(targetSpeed, 0, 255);
+    while (motorOut[0] < targetSpeed || motorOut[1] < targetSpeed || motorOut[2] < targetSpeed || motorOut[3] < targetSpeed)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            motorOut[i] = min(motorOut[i] + stepSize, targetSpeed);
+            analogWrite(motorPin[i], motorOut[i]);
+        }
+        delay(stepDelay);
+    }
 
-
-
-for (int i = 0; i < 4; i++) {
-  motorOut[i] = map(pwmRX[2], 986, 1972, 0, 255);
-  motorOut[i] = constrain(motorOut[i], 0, 255);
-  analogWrite(motorPin[i], motorOut[i]);
-  digitalWrite(directionPin[i], directionOut[i]);
+    isReversing = false; // Сброс флага после завершения плавного реверса
 }
 
+void loop()
+{
+    // Проверка значения PWM для radioPin[8] и включение реверса
+    if (pwmRX[7] >= 1450 && pwmRX[7] <= 1550 && !isReversing)
+    {
+        smoothReverse(); // Включить плавный реверс
+    }
 
+    for (int i = 0; i < 4; i++)
+    {
+        motorOut[i] = map(pwmRX[2], 986, 1972, 0, 255);
+        motorOut[i] = constrain(motorOut[i], 0, 255);
+        analogWrite(motorPin[i], motorOut[i]);
+        digitalWrite(directionPin[i], directionOut[i]);
+    }
 
-
-
-
-
-
-
-  // Вывод значений pwmRX
-  for (int i = 0; i < 10; i++) {
-    Serial.printf("pwmRX%d: %lu, ", i + 1, pwmRX[i]);
-  }
-  Serial.println();
-
-
-/*
-Троттл ін
-Яв ін
-
-Правий передній троттл
-Правий задній троттл
-Лівий передній троттл
-Лівий задній троттл
-*/
-
-  
+    // Используем значения pwmRX
+    for (int i = 0; i < 10; i++)
+    {
+        Serial.printf("pwmRX%d: %lu, ", i + 1, pwmRX[i]);
+    }
+    Serial.println();
 }
