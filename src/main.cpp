@@ -51,10 +51,10 @@ void setup()
         pinMode(brakePin[i], OUTPUT);
     };
 }
-void smoothReverse()
+void smoothReverse(int stepDelay = 16, int stepSize = 4)
 {
-    const int stepDelay = 16; // Затримка між кроками зміни швидкості
-    const int stepSize = 4;   // Крок зміни швидкості
+    // const int stepDelay = 16; // Затримка між кроками зміни швидкості
+    // const int stepSize = 4;   // Крок зміни швидкості
 
     // Плавне зменшення швидкості до нуля
     while (motorOut[0] > 0 || motorOut[1] > 0 || motorOut[2] > 0 || motorOut[3] > 0)
