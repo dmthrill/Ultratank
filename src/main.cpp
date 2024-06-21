@@ -160,9 +160,9 @@ void loop()
 
             // Плавне зменшення швидкості до нуля
 
-            while (motorOut[0] > 0 || motorOut[1] > 0)
+            while (motorOut[2] > 0 || motorOut[3] > 0)
             {
-                for (int i = 0; i < 2; i++)
+                for (int i = 2; i < 4; i++)
                 {
                     motorOut[i] = max(motorOut[i] - stepSize, 0);
                     analogWrite(motorPin[i], motorOut[i]);
@@ -171,7 +171,7 @@ void loop()
             }
 
             // Зміна напрямку
-            for (int i = 0; i < 2; i++)
+            for (int i = 2; i < 4; i++)
             {
                 directionOut[i] = !directionOut[i];
                 digitalWrite(directionPin[i], directionOut[i]);
@@ -180,9 +180,9 @@ void loop()
             // Плавне збільшення швидкості до поточного значення PWM
             int targetSpeed = map(pwmRX[2], 986, 1972, 0, 255);
             targetSpeed = constrain(targetSpeed, 0, 255);
-            while (motorOut[0] < targetSpeed || motorOut[1] < targetSpeed)
+            while (motorOut[2] < targetSpeed || motorOut[3] < targetSpeed)
             {
-                for (int i = 0; i < 2; i++)
+                for (int i = 2; i < 4; i++)
                 {
                     motorOut[i] = min(motorOut[i] + stepSize, targetSpeed);
                     analogWrite(motorPin[i], motorOut[i]);
