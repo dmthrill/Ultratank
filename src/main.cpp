@@ -104,20 +104,6 @@ void loop()
         motorOut[i] = constrain(motorOut[i], 0, 255);
         analogWrite(motorPin[i], motorOut[i]);
         // Міксування сигналу для поворотів
-        // if (yawValue > 0)
-        // {
-        //     directionOut[0] = !directionOut[0];
-        //     directionOut[1] = !directionOut[1];
-        //     motorOut[0] = abs(yawValue);
-        //     motorOut[1] = abs(yawValue);
-        // }
-        // if (yawValue < 30)
-        // {
-        //     directionOut[2] = !directionOut[2];
-        //     directionOut[3] = !directionOut[3];
-        //     motorOut[2] = abs(yawValue);
-        //     motorOut[3] = abs(yawValue);
-        // }
 
         // Логіка реверсу
         if (onReversing != isReversing)
