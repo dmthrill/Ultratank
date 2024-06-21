@@ -2,10 +2,10 @@
 
 // RX CHANNELS          1,  2, 3, 4,  5,  6, 7,  8,  9,  10
 // INDEX                0,  1, 2, 3,  4,  5, 6,  7,  8,  9
-const int radioPin[] = {15, 2, 4, 16, 17, 5, 18, 19, 21, 22}; // 2 — Газ; 3 — Поворот; 7 — тормоз; 6 — реверс.
+const int radioPin[] = {15, 2, 4, 16, 17, 5, 18, 19}; // 2 — Газ; 3 — Поворот; 7 — тормоз; 6 — реверс.
 const int motorPin[] = {32, 33, 25, 26};
 const int directionPin[] = {27, 14, 12, 13};
-const int brakePin[] = {34, 35, 1, 3};
+const int brakePin[4] = {21, 22};
 
 bool directionOut[] = {0, 0, 1, 1}; // налаштування напрямку двигунів за замовчуванням 0 — вперед, 1 — назад
 int motorOut[] = {0, 0, 0, 0};
@@ -13,14 +13,14 @@ int motorOut[] = {0, 0, 0, 0};
 // Флаги стану
 bool isReversing = false;
 
-volatile unsigned long pwmRX[10]; // Змінні для збереження значень PWM
+volatile unsigned long pwmRX[8]; // Змінні для збереження значень PWM
 
 // Обробник переривань для коректного прийому PWM сигналу
 void IRAM_ATTR handleInterrupt(void *arg)
 {
     int channelIndex = (int)arg;
-    static uint32_t prevRise[10] = {0};
-    static uint32_t prevFall[10] = {0};
+    static uint32_t prevRise[8] = {0};
+    static uint32_t prevFall[8] = {0};
     uint32_t currTime = micros();
     if (digitalRead(radioPin[channelIndex]) == HIGH)
     {
@@ -38,7 +38,7 @@ void setup()
     Serial.begin(115200);
 
     // Обробник переривань для коректного прийому PWM сигналу
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 8; i++)
     {
         attachInterruptArg(digitalPinToInterrupt(radioPin[i]), handleInterrupt, (void *)i, CHANGE);
     }
@@ -48,8 +48,9 @@ void setup()
     for (int i = 0; i < 4; i++)
     {
         pinMode(directionPin[i], OUTPUT);
-        pinMode(brakePin[i], OUTPUT);
     };
+    pinMode(brakePin[0], OUTPUT);
+    pinMode(brakePin[1], OUTPUT);
 }
 void smoothReverse(int stepDelay = 16, int stepSize = 4)
 {
@@ -91,14 +92,33 @@ void smoothReverse(int stepDelay = 16, int stepSize = 4)
 }
 void loop()
 {
+    int yawValue = map(pwmRX[3], 986, 1972, -255, 255);
+    int throttleValue = map(pwmRX[2], 986, 1972, 0, 255);
+
     bool onReversing = (pwmRX[7] >= 1450 && pwmRX[7] <= 1550) ? true : false;
     bool onBrake = (pwmRX[6] >= 1450 && pwmRX[6] <= 1500) ? true : false;
 
     for (int i = 0; i < 4; i++)
     {
-        motorOut[i] = map(pwmRX[2], 986, 1972, 0, 255);
+        motorOut[i] = throttleValue;
         motorOut[i] = constrain(motorOut[i], 0, 255);
         analogWrite(motorPin[i], motorOut[i]);
+        // Міксування сигналу для поворотів
+        // if (yawValue > 0)
+        // {
+        //     directionOut[0] = !directionOut[0];
+        //     directionOut[1] = !directionOut[1];
+        //     motorOut[0] = abs(yawValue);
+        //     motorOut[1] = abs(yawValue);
+        // }
+        // if (yawValue < 30)
+        // {
+        //     directionOut[2] = !directionOut[2];
+        //     directionOut[3] = !directionOut[3];
+        //     motorOut[2] = abs(yawValue);
+        //     motorOut[3] = abs(yawValue);
+        // }
+
         // Логіка реверсу
         if (onReversing != isReversing)
         {
@@ -110,14 +130,15 @@ void loop()
             digitalWrite(directionPin[i], directionOut[i]);
         }
 
-        digitalWrite(brakePin[i], onBrake ? HIGH : LOW); // Тормоз, тернарный оператор
+        // Тормоз, тернарный оператор
+        digitalWrite(brakePin[i], onBrake ? HIGH : LOW);
     }
 
     // Вивід у серійний порт
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 8; i++)
     {
         Serial.printf("pwmRX%d: %lu, ", i + 1, pwmRX[i]);
     }
-    Serial.print(isReversing);
+    Serial.print(yawValue);
     Serial.println();
 }
