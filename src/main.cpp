@@ -93,10 +93,10 @@ void smoothReverse(int stepDelay = 8, int stepSize = 4)
     isReversing = !isReversing; // Скидання прапорця після завершення плавного реверс
 }
 
-void smoothTurn(int motorIndex1, int motorIndex2, bool isTurnRightOrLeft)
+void smoothTurn(int motorIndex1, int motorIndex2, bool &isTurnRightOrLeft)
 {
-    int stepDelay = 16; // Затримка між кроками зміни швидкості
-    int stepSize = 4;   // Крок зміни швидкості
+    int stepDelay = 8; // Затримка між кроками зміни швидкості
+    int stepSize = 4;  // Крок зміни швидкості
 
     // Плавне зменшення швидкості до нуля
     while (motorOut[motorIndex1] > 0 || motorOut[motorIndex2] > 0)
@@ -106,7 +106,6 @@ void smoothTurn(int motorIndex1, int motorIndex2, bool isTurnRightOrLeft)
         analogWrite(motorPin[motorIndex1], motorOut[motorIndex1]);
         motorOut[motorIndex2] = max(motorOut[motorIndex2] - stepSize, 0);
         analogWrite(motorPin[motorIndex2], motorOut[motorIndex2]);
-
         delay(stepDelay);
     }
 
@@ -150,45 +149,7 @@ void loop()
         // Міксування сигналу для поворотів
         if ((yawValue > 20 && yawValue > 10) != isTurnRight)
         {
-            // directionOut[0] = !directionOut[0];
-            // directionOut[1] = !directionOut[1];
-
-            int stepDelay = 8; // Затримка між кроками зміни швидкості
-            int stepSize = 4;  // Крок зміни швидкості
-
-            // Плавне зменшення швидкості до нуля
-
-            while (motorOut[0] > 0 || motorOut[1] > 0)
-            {
-                for (int i = 0; i < 2; i++)
-                {
-                    motorOut[i] = max(motorOut[i] - stepSize, 0);
-                    analogWrite(motorPin[i], motorOut[i]);
-                }
-                delay(stepDelay);
-            }
-
-            // Зміна напрямку
-            for (int i = 0; i < 2; i++)
-            {
-                directionOut[i] = !directionOut[i];
-                digitalWrite(directionPin[i], directionOut[i]);
-            }
-
-            // Плавне збільшення швидкості до поточного значення PWM
-            int targetSpeed = map(pwmRX[2], 986, 1972, 0, 255);
-            targetSpeed = constrain(targetSpeed, 0, 255);
-            while (motorOut[0] < targetSpeed || motorOut[1] < targetSpeed)
-            {
-                for (int i = 0; i < 2; i++)
-                {
-                    motorOut[i] = min(motorOut[i] + stepSize, targetSpeed);
-                    analogWrite(motorPin[i], motorOut[i]);
-                }
-                delay(stepDelay);
-            }
-
-            isTurnRight = !isTurnRight; // Скидання прапорця після завершення плавного реверс
+            smoothTurn(0, 1, isTurnRight);
 
             Serial.print("yawValue > 20");
             Serial.print(yawValue);
@@ -196,45 +157,7 @@ void loop()
         }
         if ((yawValue < -20 && yawValue < -10) != isTurnLeft)
         {
-            int stepDelay = 8; // Затримка між кроками зміни швидкості
-            int stepSize = 4;  // Крок зміни швидкості
-
-            // Плавне зменшення швидкості до нуля
-
-            while (motorOut[2] > 0 || motorOut[3] > 0)
-            {
-                for (int i = 2; i < 4; i++)
-                {
-                    motorOut[i] = max(motorOut[i] - stepSize, 0);
-                    analogWrite(motorPin[i], motorOut[i]);
-                }
-                Serial.print("yawValue < 20 — ");
-                Serial.print(yawValue);
-                Serial.println();
-                delay(stepDelay);
-            }
-
-            // Зміна напрямку
-            for (int i = 2; i < 4; i++)
-            {
-                directionOut[i] = !directionOut[i];
-                digitalWrite(directionPin[i], directionOut[i]);
-            }
-
-            // Плавне збільшення швидкості до поточного значення PWM
-            int targetSpeed = map(pwmRX[2], 986, 1972, 0, 255);
-            targetSpeed = constrain(targetSpeed, 0, 255);
-            while (motorOut[2] < targetSpeed || motorOut[3] < targetSpeed)
-            {
-                for (int i = 2; i < 4; i++)
-                {
-                    motorOut[i] = min(motorOut[i] + stepSize, targetSpeed);
-                    analogWrite(motorPin[i], motorOut[i]);
-                }
-                delay(stepDelay);
-            }
-
-            isTurnLeft = !isTurnLeft; // Скидання прапорця після завершення плавного реверс
+            smoothTurn(2, 3, isTurnLeft);
         }
         // Логіка реверсу
         if (onReversing != isReversing)
