@@ -14,6 +14,8 @@ int motorOut[] = {0, 0, 0, 0};
 bool isReversing = false;
 bool isTurnRight = false;
 bool isTurnLeft = false;
+int yawValue;
+int throttleValue;
 
 volatile unsigned long pwmRX[8]; // Змінні для збереження значень PWM
 
@@ -66,6 +68,9 @@ void smoothReverse(int stepDelay = 8, int stepSize = 4)
         {
             motorOut[i] = max(motorOut[i] - stepSize, 0);
             analogWrite(motorPin[i], motorOut[i]);
+            Serial.print("YawValue: ");
+            Serial.print(abs(yawValue));
+            Serial.println();
         }
         delay(stepDelay);
     }
@@ -75,19 +80,6 @@ void smoothReverse(int stepDelay = 8, int stepSize = 4)
     {
         directionOut[i] = !directionOut[i];
         digitalWrite(directionPin[i], directionOut[i]);
-    }
-
-    // Плавне збільшення швидкості до поточного значення PWM
-    int targetSpeed = map(pwmRX[2], 986, 1972, 0, 255);
-    targetSpeed = constrain(targetSpeed, 0, 255);
-    while (motorOut[0] < targetSpeed || motorOut[1] < targetSpeed || motorOut[2] < targetSpeed || motorOut[3] < targetSpeed)
-    {
-        for (int i = 0; i < 4; i++)
-        {
-            motorOut[i] = min(motorOut[i] + stepSize, targetSpeed);
-            analogWrite(motorPin[i], motorOut[i]);
-        }
-        delay(stepDelay);
     }
 
     isReversing = !isReversing; // Скидання прапорця після завершення плавного реверс
@@ -115,27 +107,13 @@ void smoothTurn(int motorIndex1, int motorIndex2, bool &isTurnRightOrLeft)
     directionOut[motorIndex2] = !directionOut[motorIndex2];
     digitalWrite(directionPin[motorIndex2], directionOut[motorIndex2]);
 
-    // Плавне збільшення швидкості до поточного значення PWM
-    int targetSpeed = map(pwmRX[2], 986, 1972, 0, 255);
-    targetSpeed = constrain(targetSpeed, 0, 255);
-    while (motorOut[motorIndex1] < targetSpeed || motorOut[motorIndex2] < targetSpeed)
-    {
-
-        motorOut[motorIndex1] = min(motorOut[motorIndex1] + stepSize, targetSpeed);
-        analogWrite(motorPin[motorIndex1], motorOut[motorIndex1]);
-        motorOut[motorIndex2] = min(motorOut[motorIndex2] + stepSize, targetSpeed);
-        analogWrite(motorPin[motorIndex2], motorOut[motorIndex2]);
-
-        delay(stepDelay);
-    }
-
     isTurnRightOrLeft = !isTurnRightOrLeft; // Скидання прапорця після завершення плавного реверс
 }
 
 void loop()
 {
-    int yawValue = map(pwmRX[3], 986, 1972, -255, 255);
-    int throttleValue = map(pwmRX[2], 986, 1990, 0, 255);
+    yawValue = map(pwmRX[3], 986, 1972, -255, 255);
+    throttleValue = map(pwmRX[2], 996, 1990, 0, 255);
 
     bool onReversing = (pwmRX[7] >= 1450 && pwmRX[7] <= 1550) ? true : false;
     bool onBrake = (pwmRX[6] >= 1450 && pwmRX[6] <= 1500) ? true : false;
@@ -143,21 +121,57 @@ void loop()
     for (int i = 0; i < 4; i++)
     {
         // Газ без поворотів
-        motorOut[i] = throttleValue;
-        motorOut[i] = constrain(motorOut[i], 0, 255);
-        analogWrite(motorPin[i], motorOut[i]);
         // Міксування сигналу для поворотів
-        if ((yawValue > 20 && yawValue > 10) != isTurnRight)
+        if ((yawValue > 20) != isTurnRight)
         {
             smoothTurn(0, 1, isTurnRight);
 
-            Serial.print("yawValue > 20");
-            Serial.print(yawValue);
-            Serial.println();
+            // motorOut[0] = abs(yawValue);
+            // motorOut[0] = constrain(motorOut[0], 0, 255);
+            // analogWrite(motorPin[0], motorOut[0]);
         }
-        if ((yawValue < -20 && yawValue < -10) != isTurnLeft)
+        else if ((yawValue < -20) != isTurnLeft)
         {
             smoothTurn(2, 3, isTurnLeft);
+            // while ((abs(yawValue)) > 20)
+            // {
+            //     motorOut[3] = abs(yawValue);
+            //     motorOut[3] = constrain(motorOut[3], 0, 255);
+            //     analogWrite(motorPin[3], motorOut[3]);
+            // }
+            // Serial.print("yawValue < 20");
+            // Serial.print(yawValue);
+            // Serial.println();
+        }
+        else
+        {
+            motorOut[i] = map(pwmRX[2], 996, 1990, 0, 255);
+            motorOut[i] = constrain(motorOut[i], 0, 255);
+            analogWrite(motorPin[i], motorOut[i]);
+            if (yawValue > 20)
+            {
+                motorOut[0] = abs(yawValue);
+                motorOut[0] = constrain(motorOut[0], 0, 255);
+                analogWrite(motorPin[0], motorOut[0]);
+                motorOut[1] = abs(yawValue);
+                motorOut[1] = constrain(motorOut[1], 0, 255);
+                analogWrite(motorPin[1], motorOut[1]);
+                Serial.print("isTurn > yawValue: ");
+                Serial.print(yawValue);
+                Serial.println();
+            }
+            if (yawValue < -20)
+            {
+                motorOut[2] = abs(yawValue);
+                motorOut[2] = constrain(motorOut[2], 0, 255);
+                analogWrite(motorPin[2], motorOut[2]);
+                motorOut[3] = abs(yawValue);
+                motorOut[3] = constrain(motorOut[3], 0, 255);
+                analogWrite(motorPin[3], motorOut[3]);
+                // Serial.print("isTurn < yawValue: ");
+                // Serial.print(yawValue);
+                // Serial.println();
+            }
         }
         // Логіка реверсу
         if (onReversing != isReversing)
@@ -174,11 +188,14 @@ void loop()
         digitalWrite(brakePin[i], onBrake ? HIGH : LOW);
     }
 
-    // Вивід у серійний порт
-    for (int i = 0; i < 8; i++)
-    {
-        Serial.printf("pwmRX%d: %lu, ", i + 1, pwmRX[i]);
-    }
-    Serial.print(yawValue);
-    Serial.println();
+    // // Вивід у серійний порт
+    // for (int i = 0; i < 8; i++)
+    // {
+    //     Serial.printf("pwmRX%d: %lu, ", i + 1, pwmRX[i]);
+    // }
+    // Serial.print(isTurnRight);
+    // Serial.println();
+    // Serial.print(isTurnLeft);
+    // Serial.println();
+    Serial.println("isTurnRight: ");
 }
