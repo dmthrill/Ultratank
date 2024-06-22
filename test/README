@@ -9,3 +9,54 @@ in the development cycle.
 
 More information about PlatformIO Unit Testing:
 - https://docs.platformio.org/en/latest/advanced/unit-testing/index.html
+
+
+
+void smothTurn(bool isTurnLeftRight, int motorOut1, int motorOut2, int forStartIndex, int forEndIndex)
+{
+    // directionOut[0] = !directionOut[0];
+    // directionOut[1] = !directionOut[1];
+
+    int stepDelay = 16; // Затримка між кроками зміни швидкості
+    int stepSize = 4;   // Крок зміни швидкості
+
+    // Плавне зменшення швидкості до нуля
+
+    while (motorOut1 > 0 || motorOut2 > 0)
+    {
+        for (int i = forStartIndex; i < forEndIndex; i++)
+        {
+            motorOut[i] = max(motorOut[i] - stepSize, 0);
+            analogWrite(motorPin[i], motorOut[i]);
+        }
+        delay(stepDelay);
+    }
+
+    // Зміна напрямку
+    for (int i = forStartIndex; i < forEndIndex; i++)
+    {
+        directionOut[i] = !directionOut[i];
+        digitalWrite(directionPin[i], directionOut[i]);
+    }
+
+    // Плавне збільшення швидкості до поточного значення PWM
+    int targetSpeed = map(pwmRX[2], 986, 1972, 0, 255);
+    targetSpeed = constrain(targetSpeed, 0, 255);
+    while (motorOut1 < targetSpeed || motorOut2 < targetSpeed)
+    {
+        for (int i = forStartIndex; i < forEndIndex; i++)
+        {
+            motorOut[i] = min(motorOut[i] + stepSize, targetSpeed);
+            analogWrite(motorPin[i], motorOut[i]);
+        }
+        delay(stepDelay);
+    }
+
+    isTurnRight = !isTurnRight; // Скидання прапорця після завершення плавного реверс
+}
+
+
+void(loop) {
+
+    
+}
